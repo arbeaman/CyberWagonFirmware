@@ -1,0 +1,15 @@
+#include "CyberWagonFirmwareModule.h"
+#include "CWFU_SteeringPatch.h"
+
+DEFINE_LOG_CATEGORY(LogCyberWagonFirmware);
+
+void FCyberWagonFirmwareModule::StartupModule()
+{
+	// Native hooks crash the editor, so only install them in the packaged game
+	if (!WITH_EDITOR)
+	{
+		FCWFU_SteeringPatch::Install();
+	}
+}
+
+IMPLEMENT_GAME_MODULE(FCyberWagonFirmwareModule, CyberWagonFirmware);

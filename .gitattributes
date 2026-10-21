@@ -1,0 +1,7 @@
+# Keep text files as LF everywhere (overrides core.autocrlf), so Git doesn't convert them to CRLF
+* text=auto eol=lf
+
+# Unreal assets and images are binary
+*.uasset binary
+*.umap binary
+*.png binary
