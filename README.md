@@ -1,10 +1,16 @@
 # Cyber Wagon (Firmware Update)
 
-A Satisfactory mod (SML 3.12, game 1.2.4.1 / CL 513885) that adds a patched Cyber Wagon that can turn left.
+A Satisfactory mod that adds a patched Cyber Wagon that can turn left.
+
+Requires Satisfactory Mod Loader (SML) version 3.12, and game version 1.2.4.1 / CL 513885.
 
 - **AWESOME Shop → Vehicles → "Cyber Wagon (Firmware Update)"**: 25 FICSIT Coupons. It only appears after you've bought the vanilla Cyber Wagon.
 - **Build recipe**: the vanilla Cyber Wagon ingredients (10 Reinforced Iron Plate) plus 2 Circuit Boards, built with the build gun.
 - Vanilla Cyber Wagons are not changed.
+
+## Release Install
+
+The simplest way to install is select the latest **Release** on the right and follow the directions on that page.
 
 ## How it works
 
@@ -17,7 +23,9 @@ A Satisfactory mod (SML 3.12, game 1.2.4.1 / CL 513885) that adds a patched Cybe
 
 ## Building
 
-This is the plugin folder for the [SML starter project](https://docs.ficsit.app/satisfactory-modding/latest/Development/BeginnersGuide/project_setup.html).
+This project is based on the starter project from Satisfactory [SML starter project](https://docs.ficsit.app/satisfactory-modding/latest/Development/BeginnersGuide/project_setup.html).
+
+The initial build takes several hours.
 
 1. Set up the starter project and the matching Unreal Engine (CSS 5.6) by following the docs linked above.
 2. Copy this `CyberWagonFirmware` folder into the starter project's `Mods/` directory, then regenerate the Visual Studio project files.
