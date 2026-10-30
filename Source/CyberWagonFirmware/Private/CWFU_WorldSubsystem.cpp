@@ -20,8 +20,35 @@ static const TCHAR* CircuitBoardPath = TEXT("/Game/FactoryGame/Resource/Parts/Ci
 // The mod's own vehicle: a Blueprint child of the vanilla Cyber Wagon (Testa_BP_WB), see README
 static const TCHAR* PatchedVehiclePath = TEXT("/CyberWagonFirmware/BP_CyberWagonFirmware.BP_CyberWagonFirmware_C");
 
+// The patched wagon gets the Truck's cargo space
+static const TCHAR* TruckPath = TEXT("/Game/FactoryGame/Buildable/Vehicle/Truck/BP_Truck.BP_Truck_C");
+
 static constexpr int32 FirmwareCouponCost = 25;
 static constexpr int32 FirmwareCircuitBoards = 2;
+
+// Tyre grip (Chaos FrictionForceMultiplier). The vanilla wagon uses the engine default of 2.0, which limits it to
+// about 0.4 g: its drive force is far above that, so it spins its wheels and slides. 3.6 gives roughly 0.7 g,
+// in line with a real Cybertruck's 0-60 mph in about 4 seconds.
+static constexpr float FirmwareWheelFriction = 3.6f;
+
+/** Copy all settings of a vanilla wheel Blueprint into one of our wheel classes, then apply the firmware's grip changes */
+static void SetupWheelClass(UClass* WheelClass, const UClass* VanillaWheelClass)
+{
+	UChaosVehicleWheel* Wheel = WheelClass->GetDefaultObject<UChaosVehicleWheel>();
+	const UChaosVehicleWheel* VanillaWheel = VanillaWheelClass->GetDefaultObject<UChaosVehicleWheel>();
+	for (TFieldIterator<FProperty> It(UFGVehicleWheel::StaticClass()); It; ++It)
+	{
+		if (!It->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_Transient))
+		{
+			It->CopyCompleteValue_InContainer(Wheel, VanillaWheel);
+		}
+	}
+	Wheel->FrictionForceMultiplier = FirmwareWheelFriction;
+	// Limit drive force to the available grip instead of spinning the wheels, and keep the rear wheels from
+	// locking under braking (vanilla only has ABS on the front)
+	Wheel->bTractionControlEnabled = true;
+	Wheel->bABSEnabled = true;
+}
 
 bool UCWFU_WorldSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -156,8 +183,33 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	// Vehicles copy this from the class default object when spawned or loaded, so only patched wagons change.
 	if (AFGWheeledVehicle* VehicleCDO = Cast<AFGWheeledVehicle>(PatchedVehicleClass->GetDefaultObject()))
 	{
+		// Cargo: as many slots as the Truck (the vanilla wagon has 1). Wagons from older saves are grown on
+		// BeginPlay by FCWFU_TuningPatch.
+		if (const UClass* TruckClass = LoadClass<AFGWheeledVehicle>(nullptr, TruckPath))
+		{
+			VehicleCDO->mInventorySize = TruckClass->GetDefaultObject<AFGWheeledVehicle>()->mInventorySize;
+		}
+		else
+		{
+			UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class %s, cargo space not changed"), TruckPath);
+		}
+
 		if (UFGWheeledVehicleMovementComponent* Movement = VehicleCDO->GetVehicleMovementComponent())
 		{
+			// Grip: swap the vanilla front/back wheel classes for our copies with more grip and traction control
+			for (FChaosWheelSetup& WheelSetup : Movement->WheelSetups)
+			{
+				UClass* VanillaWheelClass = WheelSetup.WheelClass;
+				if (!VanillaWheelClass || VanillaWheelClass->IsChildOf<UCWFU_FrontWheel>() || VanillaWheelClass->IsChildOf<UCWFU_RearWheel>())
+				{
+					continue;
+				}
+				const UChaosVehicleWheel* VanillaWheel = VanillaWheelClass->GetDefaultObject<UChaosVehicleWheel>();
+				UClass* WheelClass = VanillaWheel->bAffectedBySteering ? UCWFU_FrontWheel::StaticClass() : UCWFU_RearWheel::StaticClass();
+				SetupWheelClass(WheelClass, VanillaWheelClass);
+				WheelSetup.WheelClass = WheelClass;
+			}
+
 			Movement->SteeringSetup.SteeringType = ESteeringType::SingleAngle;
 
 			// The vanilla speed-vs-steering curve is deliberately jagged (e.g. 2.03 at 36 mph, 0.55 at 41 mph),

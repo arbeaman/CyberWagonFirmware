@@ -6,6 +6,8 @@ The fixes include:
    1. The ability to turn left
    2. The elimination of periodic 'jumps' (called the 'SpaceShipFeature')
    3. Fixes for a sticky throttle that periodically caused the car to accelerate a full speed (called 'StickyThrottleFailure' and 'StickThrottleToFloor').
+   4. Improve acceleration and grip
+   5. Added more inventory slots.
 
 ## How to get the Cyber Wagon
 

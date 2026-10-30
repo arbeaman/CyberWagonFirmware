@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "FGRecipe.h"
 #include "FGSchematic.h"
+#include "FGVehicleWheel.h"
 #include "Resources/FGVehicleDescriptor.h"
 #include "CWFU_Content.generated.h"
 
@@ -42,4 +43,20 @@ class CYBERWAGONFIRMWARE_API UCWFU_Schematic : public UFGSchematic
 	GENERATED_BODY()
 public:
 	UCWFU_Schematic();
+};
+
+/**
+ * Wheels of the patched wagon. At runtime UCWFU_WorldSubsystem copies every setting from the vanilla Cyber Wagon's
+ * front/back wheel Blueprints into these, then applies the grip changes. Separate classes so vanilla wagons keep theirs.
+ */
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_FrontWheel : public UFGVehicleWheel
+{
+	GENERATED_BODY()
+};
+
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_RearWheel : public UFGVehicleWheel
+{
+	GENERATED_BODY()
 };
