@@ -24,8 +24,10 @@ public:
 	/** Vehicle class that receives the patch. Set by UCWFU_WorldSubsystem once the class is loaded */
 	static void SetPatchedVehicleClass(UClass* VehicleClass);
 
-private:
+	/** True if the vehicle is a Firmware Update wagon */
 	static bool IsPatched(const AFGWheeledVehicle* Vehicle);
+
+private:
 	/** True while the driver of a patched wagon is holding left this frame; OutSteering is the (negative) input */
 	static bool GetPlayerLeftSteering(AFGWheeledVehicle* Vehicle, float& OutSteering);
 

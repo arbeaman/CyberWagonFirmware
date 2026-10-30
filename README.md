@@ -1,8 +1,10 @@
 # Cyber Wagon (Firmware Update)
 
-A Satisfactory mod that adds a patched Cyber Wagon that can turn left.
+A Satisfactory mod that fixes several problems with the vanilla cyber Wagon through 'firmware updates'.
 
-Requires Satisfactory Mod Loader (SML) version 3.12, and game version 1.2.4.1 / CL 513885.
+The fixes include the ability to turn left, and the elimination of periodic 'jumps'.
+
+## How to get the Cyber Wagon
 
 - **AWESOME Shop → Vehicles → "Cyber Wagon (Firmware Update)"**: 25 FICSIT Coupons. It only appears after you've bought the vanilla Cyber Wagon.
 - **Build recipe**: the vanilla Cyber Wagon ingredients (10 Reinforced Iron Plate) plus 2 Circuit Boards, built with the build gun.
@@ -12,20 +14,23 @@ Requires Satisfactory Mod Loader (SML) version 3.12, and game version 1.2.4.1 / 
 
 The simplest way to install is select the latest **Release** on the right and follow the directions on that page.
 
+The release files require specific versions of Satisfactory Mod Loader (SML) and the game version.  The version required is listed with each release.
+
 ## How it works
 
 | File | Role |
 |---|---|
-| `CWFU_SteeringPatch.cpp` | The fix. While a left (negative) raw steering input is applied, the vanilla wagon steers its wheels right at twice the normal angle. A negative *smoothed* steering value with no raw input behind it steers left normally. So for the mod's wagon, left input is kept out of the raw input: `AFGWheeledVehicle::MoveRight` is skipped for negative values. Right after `UFGWheeledVehicleMovementComponent::UpdateState`, the mod drives the smoothed steering value toward the player's input using the vehicle's own rise rate. Right steering uses the game's normal path. Only the mod's wagon class is affected. |
+| `CWFU_SteeringPatch.cpp` | The left-turn fix. While a left (negative) raw steering input is applied, the vanilla wagon steers its wheels right at twice the normal angle. A negative *smoothed* steering value with no raw input behind it steers left normally. So for the mod's wagon, left input is kept out of the raw input: `AFGWheeledVehicle::MoveRight` is skipped for negative values. Right after `UFGWheeledVehicleMovementComponent::UpdateState`, the mod drives the smoothed steering value toward the player's input using the vehicle's own rise rate. Right steering uses the game's normal path. Only the mod's wagon class is affected. |
+| `CWFU_BumpPatch.cpp` | Removes the periodic shake. Every 7.5 seconds the vanilla Blueprint's `SpaceShipFeature` event kicks the wagon with a large upward impulse at one of its `BumpLoc` corner markers, picked at random. For the mod's wagon, `UPrimitiveComponent::AddImpulseAtLocation` calls aimed at a `BumpLoc` marker are cancelled; other impulses go through. |
 | `CWFU_Content.*` | C++ descriptor, recipe and schematic classes that hold the names and text. |
-| `CWFU_WorldSubsystem.*` | At world init it copies the vanilla Cyber Wagon item's settings (icons, build-menu category, ...), the recipe ingredients, the shop category, the coupon item and the unlock/dependency object types. It registers the schematic through `UModContentRegistry`. It also gives the mod's wagon class single-angle steering and Unreal's standard speed-vs-steering curve; the vanilla curve is deliberately jagged. |
+| `CWFU_WorldSubsystem.*` | At world init it copies the vanilla Cyber Wagon item's settings (icons, build-menu category, ...), the recipe ingredients, the shop category, the coupon item and the unlock/dependency object types. It registers the schematic through `UModContentRegistry`. It also gives the mod's wagon class single-angle steering and Unreal's standard speed-vs-steering curve; the vanilla wagon's curve is deliberately jagged. |
 | `Config/AccessTransformers.ini` | Gives the code access to the protected FactoryGame members it needs. |
 
 ## Building
 
-This project is based on the starter project from Satisfactory [SML starter project](https://docs.ficsit.app/satisfactory-modding/latest/Development/BeginnersGuide/project_setup.html).
+This mod can be installed from the zip files under the **Releases** on the right, or it can be built from source.  The initial build takes several hours.
 
-The initial build takes several hours.
+This project is based on the starter project from Satisfactory [SML starter project](https://docs.ficsit.app/satisfactory-modding/latest/Development/BeginnersGuide/project_setup.html).
 
 1. Set up the starter project and the matching Unreal Engine (CSS 5.6) by following the docs linked above.
 2. Copy this `CyberWagonFirmware` folder into the starter project's `Mods/` directory, then regenerate the Visual Studio project files.
@@ -38,7 +43,7 @@ The initial build takes several hours.
 
 ## Verifying
 
-- `FactoryGame.log` should contain `Steering firmware patch installed` and `Cyber Wagon firmware content ready`.
+- `FactoryGame.log` should contain `Steering firmware patch installed`, `Bump patch installed` and `Cyber Wagon firmware content ready`.
 - If you see `Missing class: ... vehicle=0`, the Blueprint from step 4 isn't at `/CyberWagonFirmware/BP_CyberWagonFirmware`.
-- Left and right steering should both work. The wagon still slides, oversteers and shakes now and then; that's vanilla Cyber Wagon handling, which the mod doesn't change.
+- Left and right steering should both work. The wagon still slides and oversteers; that's vanilla Cyber Wagon handling, which the mod doesn't change.
 - A wagon loaded from a save keeps whatever speed it was saved with.
