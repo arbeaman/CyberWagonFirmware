@@ -1,4 +1,4 @@
-#include "CWFU_BumpPatch.h"
+#include "CWFU_GagPatch.h"
 #include "CWFU_SteeringPatch.h"
 #include "CyberWagonFirmwareModule.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -22,9 +22,9 @@ static bool IsAtBumpLoc(const AActor* Vehicle, const FVector& Location)
 	return false;
 }
 
-void FCWFU_BumpPatch::Install()
+void FCWFU_GagPatch::Install()
 {
-	// AddImpulseAtLocation isn't overridden below UPrimitiveComponent, so any skeletal mesh works as the sample
+	// Shake. AddImpulseAtLocation isn't overridden below UPrimitiveComponent, so any skeletal mesh works as the sample
 	SUBSCRIBE_METHOD_VIRTUAL(UPrimitiveComponent::AddImpulseAtLocation, GetMutableDefault<USkeletalMeshComponent>(),
 		[](auto& Scope, UPrimitiveComponent* Self, FVector Impulse, FVector Location, FName BoneName)
 	{
@@ -35,5 +35,18 @@ void FCWFU_BumpPatch::Install()
 		}
 	});
 
-	UE_LOG(LogCyberWagonFirmware, Log, TEXT("Bump patch installed"));
+	// Sticky throttle. Both events reach the wagon through ProcessEvent (timers), so blocking them there stops them
+	SUBSCRIBE_METHOD_VIRTUAL(AActor::ProcessEvent, GetMutableDefault<AFGWheeledVehicle>(),
+		[](auto& Scope, AActor* Self, UFunction* Function, void* Parameters)
+	{
+		static const FName StickyThrottleFailure(TEXT("StickyThrottleFailure"));
+		static const FName StickThrottleToFloor(TEXT("StickThrottleToFloor"));
+		if (Function && (Function->GetFName() == StickyThrottleFailure || Function->GetFName() == StickThrottleToFloor)
+			&& FCWFU_SteeringPatch::IsPatched(Cast<AFGWheeledVehicle>(Self)))
+		{
+			Scope.Cancel();
+		}
+	});
+
+	UE_LOG(LogCyberWagonFirmware, Log, TEXT("Gag patch installed (shake, sticky throttle)"));
 }
