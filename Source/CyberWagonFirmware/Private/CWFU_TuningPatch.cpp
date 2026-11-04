@@ -3,6 +3,7 @@
 #include "CyberWagonFirmwareModule.h"
 #include "FGInventoryComponent.h"
 #include "Patching/NativeHookManager.h"
+#include "WheeledVehicles/FGVehiclePathPreset.h"
 #include "WheeledVehicles/FGWheeledVehicle.h"
 
 void FCWFU_TuningPatch::Install()
@@ -13,6 +14,8 @@ void FCWFU_TuningPatch::Install()
 		{
 			return;
 		}
+		UE_LOG(LogCyberWagonFirmware, Log, TEXT("%s uses path preset %s"), *Self->GetName(), *GetNameSafe(Self->GetVehiclePathPreset()));
+
 		// Wagons saved before the cargo upgrade load with their old, smaller storage.
 		// Grow the wagon's inventory if its slots (GetSizeLinear) are below its size (mInventorySize)
 		UFGInventoryComponent* Storage = Self->GetStorageInventory();

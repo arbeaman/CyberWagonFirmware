@@ -8,6 +8,7 @@ The fixes include:
    3. Fixes for a sticky throttle that periodically caused the car to accelerate to full speed (called 'StickyThrottleFailure' and 'StickThrottleToFloor').
    4. Better acceleration and tire grip: more grip, traction control on all wheels and ABS on all wheels. 0-100 km/h takes about 5 seconds, close to a real Cybertruck.
    5. More cargo space: 120 inventory slots (the vanilla Cyber Wagon has 1).
+   6. Self-driving: follows Truck and Universal paths and loads and unloads at Truck Stations, with the same acceleration, top speed, braking and cornering grip as when you drive it yourself.
 
 ## How to get the Cyber Wagon
 
@@ -29,7 +30,7 @@ The release files require specific versions of Satisfactory Mod Loader (SML) and
 | `CWFU_GagPatch.cpp` | Removes two deliberate malfunctions of the vanilla wagon. **Shake:** every 7.5 seconds the Blueprint's `SpaceShipFeature` event kicks the wagon with a large upward impulse at one of its `BumpLoc` corner markers, picked at random; `UPrimitiveComponent::AddImpulseAtLocation` calls aimed at a `BumpLoc` marker are cancelled, other impulses go through. **Sticky throttle:** every ~6 seconds `StickyThrottleFailure` may start `StickThrottleToFloor`, which accelerates the wagon to top speed for 10-20 seconds; both events are blocked in `AActor::ProcessEvent`. |
 | `CWFU_TuningPatch.cpp` | Wagons built before the current cargo size load from the save with their old, smaller storage; on `BeginPlay` it is grown to the new size. Storage is never shrunk. |
 | `CWFU_Content.*` | C++ descriptor, recipe and schematic classes that hold the names and text, and the mod's own front/rear wheel classes. |
-| `CWFU_WorldSubsystem.*` | At world init it copies the vanilla Cyber Wagon item's settings (icons, build-menu category, ...), the recipe ingredients, the shop category, the coupon item and the unlock/dependency object types. It registers the schematic through `UModContentRegistry`. It also gives the mod's wagon class single-angle steering and Unreal's standard speed-vs-steering curve; the vanilla wagon's curve is deliberately jagged. **Grip:** it swaps the wheel classes for copies of the vanilla wheels with `FrictionForceMultiplier` 3.6 instead of 2.0 and traction control and ABS on all four wheels. The vanilla wagon's engine delivers far more force than its tyres can hold, so it spun its wheels at about 0.4 g; it now accelerates and corners at about 0.7 g. Mass and top speed (165 km/h) are unchanged. **Cargo:** it sets `mInventorySize` to 120 (`FCWFU_INVENTORY_SLOTS`). |
+| `CWFU_WorldSubsystem.*` | At world init it copies the vanilla Cyber Wagon item's settings (icons, build-menu category, ...), the recipe ingredients, the shop category, the coupon item and the unlock/dependency object types. It registers the schematic through `UModContentRegistry`. It also gives the mod's wagon class single-angle steering and Unreal's standard speed-vs-steering curve; the vanilla wagon's curve is deliberately jagged. **Grip:** it swaps the wheel classes for copies of the vanilla wheels with `FrictionForceMultiplier` 3.6 instead of 2.0 and traction control and ABS on all four wheels. The vanilla wagon's engine delivers far more force than its tyres can hold, so it spun its wheels at about 0.4 g; it now accelerates and corners at about 0.7 g. Mass and top speed (165 km/h) are unchanged. **Cargo:** it sets `mInventorySize` to 120 (`FCWFU_INVENTORY_SLOTS`). **Autopilot:** the vanilla wagon has an autopilot component, but no path preset or movement curves. It uses the Truck's path preset, and builds its own curves from the wagon's mass: 0-100 km/h in about 5 seconds, 165 km/h and about 0.7 g braking and cornering. Autopilot doesn't use the wheel physics, so these have to be set separately. It then rebuilds the Blueprint's list of properties to copy to new instances, because the preset wasn't on that list when the class was loaded. |
 | `Config/AccessTransformers.ini` | Gives the code access to the protected FactoryGame members it needs. |
 
 ## Building
@@ -49,8 +50,10 @@ This project is based on the starter project from Satisfactory [SML starter proj
 
 ## Verifying
 
-- `FactoryGame.log` should contain `Steering firmware patch installed`, `Gag patch installed`, `Tuning patch installed` and `Cyber Wagon firmware content ready`. A wagon from an older save also logs `Growing ... storage from 1 to 120 slots` once (from 48 if it was last saved with v1.1.0).
+- `FactoryGame.log` should contain `Steering firmware patch installed`, `Gag patch installed`, `Tuning patch installed`, `Autopilot ready` and `Cyber Wagon firmware content ready`. A wagon from an older save also logs `Growing ... storage from 1 to 120 slots` once (from 48 if it was last saved with v1.1.0).
 - If you see `Missing class: ... vehicle=0`, the Blueprint from step 4 isn't at `/CyberWagonFirmware/BP_CyberWagonFirmware`.
 - Left and right steering should both work, the wagon should not shake or speed up on its own, and it should grip and accelerate without spinning its wheels.
 - The trunk should have 120 slots.
 - A wagon loaded from a save keeps whatever speed it was saved with.
+- Each wagon should log `uses path preset VehiclePathPreset_Truck`. `None` means the preset didn't reach it.
+- On a Truck or Universal path, the wagon should accept a route with Truck Stations, drive it, and load and unload at each stop.

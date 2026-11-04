@@ -3,9 +3,11 @@
 #include "CWFU_SteeringPatch.h"
 #include "CyberWagonFirmwareModule.h"
 #include "AvailabilityDependencies/FGSchematicPurchasedDependency.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "FGVehicle.h"
 #include "Registry/ModContentRegistry.h"
 #include "Unlocks/FGUnlockRecipe.h"
+#include "WheeledVehicles/FGVehicleAutopilotComponent.h"
 #include "WheeledVehicles/FGWheeledVehicle.h"
 #include "WheeledVehicles/FGWheeledVehicleMovementComponent.h"
 
@@ -22,7 +24,7 @@ static const TCHAR* CircuitBoardPath = TEXT("/Game/FactoryGame/Resource/Parts/Ci
 // The mod's own vehicle: a Blueprint child of the vanilla Cyber Wagon (Testa_BP_WB), see README
 static const TCHAR* PatchedVehiclePath = TEXT("/CyberWagonFirmware/BP_CyberWagonFirmware.BP_CyberWagonFirmware_C");
 
-// The patched wagon gets the Truck's cargo space
+// On autopilot the patched wagon drives on the Truck's paths (Truck and Universal)
 static const TCHAR* TruckPath = TEXT("/Game/FactoryGame/Buildable/Vehicle/Truck/BP_Truck.BP_Truck_C");
 
 static constexpr int32 FirmwareCouponCost = 25;
@@ -32,6 +34,24 @@ static constexpr int32 FirmwareCircuitBoards = 2;
 // about 0.4 g: its drive force is far above that, so it spins its wheels and slides. 3.6 gives roughly 0.7 g,
 // in line with a real Cybertruck's 0-60 mph in about 4 seconds.
 static constexpr float FirmwareWheelFriction = 3.6f;
+
+// Autopilot moves the wagon along the path spline without the wheel physics, so the manual driving performance is
+// repeated here. The game's autopilot forces are absolute (kN), so they are calculated from the wagon's own mass.
+static constexpr float AutopilotTopSpeed = 45.8f; // m/s, the manual top speed of 165 km/h
+static constexpr float AutopilotAcceleration = 5.6f; // m/s^2, 0-100 km/h in about 5 seconds
+static constexpr float AutopilotBraking = 6.9f; // m/s^2, about 0.7 g like the manual tyre grip
+static constexpr float AutopilotEngineBraking = 1.4f; // m/s^2, part of AutopilotBraking
+static constexpr float AutopilotCornering = 6.9f; // m/s^2, about 0.7 g like the manual tyre grip
+static constexpr float AutopilotThrottleChangeRate = 2.0f; // 1/s, the default of 0.2 takes 5 seconds to reach full throttle
+static constexpr float AirDensity = 1.2f; // kg/m^3
+
+/** Empties a curve so it can be filled with our own keys. A curve asset assigned to it would otherwise take priority */
+static FRichCurve& ResetCurve(FRuntimeFloatCurve& Curve)
+{
+	Curve.ExternalCurve = nullptr;
+	Curve.EditorCurveData.Reset();
+	return Curve.EditorCurveData;
+}
 
 /** Copy all settings of a vanilla wheel Blueprint into one of our wheel classes, then apply the firmware's grip changes */
 static void SetupWheelClass(UClass* WheelClass, const UClass* VanillaWheelClass)
@@ -87,18 +107,19 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	UClass* VanillaSchematicClass = LoadClass<UFGSchematic>(nullptr, VanillaSchematicPath);
 	UClass* CircuitBoardClass = LoadClass<UFGItemDescriptor>(nullptr, CircuitBoardPath);
 	UClass* PatchedVehicleClass = LoadClass<AFGVehicle>(nullptr, PatchedVehiclePath);
-	if (!VanillaDescClass || !VanillaRecipeClass || !VanillaSchematicClass || !CircuitBoardClass || !PatchedVehicleClass)
+	UClass* TruckClass = LoadClass<AFGWheeledVehicle>(nullptr, TruckPath);
+	if (!VanillaDescClass || !VanillaRecipeClass || !VanillaSchematicClass || !CircuitBoardClass || !PatchedVehicleClass || !TruckClass)
 	{
-		UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class: desc=%d recipe=%d schematic=%d circuit=%d vehicle=%d"),
+		UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class: desc=%d recipe=%d schematic=%d circuit=%d vehicle=%d truck=%d"),
 			VanillaDescClass != nullptr, VanillaRecipeClass != nullptr, VanillaSchematicClass != nullptr,
-			CircuitBoardClass != nullptr, PatchedVehicleClass != nullptr);
+			CircuitBoardClass != nullptr, PatchedVehicleClass != nullptr, TruckClass != nullptr);
 		return false;
 	}
 
 	// Our classes' CDOs are native and live in the disregard-for-GC pool, whose references are not traced by the
 	// garbage collector. Anything only they point at (loaded classes, the unlock/dependency objects below) would
 	// be collected on the next map change and leave dangling pointers, so root it explicitly.
-	for (UClass* Class : { VanillaDescClass, VanillaRecipeClass, VanillaSchematicClass, CircuitBoardClass, PatchedVehicleClass })
+	for (UClass* Class : { VanillaDescClass, VanillaRecipeClass, VanillaSchematicClass, CircuitBoardClass, PatchedVehicleClass, TruckClass })
 	{
 		Class->AddToRoot();
 	}
@@ -185,6 +206,49 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	// Vehicles copy this from the class default object when spawned or loaded, so only patched wagons change.
 	if (AFGWheeledVehicle* VehicleCDO = Cast<AFGWheeledVehicle>(PatchedVehicleClass->GetDefaultObject()))
 	{
+		// Autopilot: the Truck's path preset decides which paths the wagon can drive on. The vanilla wagon has an
+		// autopilot component, but no preset or curves, so it has no autopilot and no forces to move with.
+		VehicleCDO->mVehiclePathPreset = TruckClass->GetDefaultObject<AFGWheeledVehicle>()->GetVehiclePathPreset();
+
+		if (UFGVehicleAutopilotComponent* Autopilot = VehicleCDO->GetVehicleAutopilotComponent())
+		{
+			const float MassTonnes = Autopilot->mVehicleMass / 1000.0f; // tonnes * m/s^2 = kN
+
+			// Enough force for the target acceleration on top of the air drag at top speed. Drops to zero at top speed.
+			const float DragAtTopSpeed = 0.5f * AirDensity * Autopilot->mDragCoefficient * Autopilot->mVehicleCrossSectionalArea
+				* FMath::Square(AutopilotTopSpeed) / 1000.0f;
+			const float TractiveEffort = MassTonnes * AutopilotAcceleration + DragAtTopSpeed;
+			FRichCurve& TractiveCurve = ResetCurve(Autopilot->mTractiveEffortCurve);
+			TractiveCurve.AddKey(0.0f, TractiveEffort);
+			TractiveCurve.AddKey(AutopilotTopSpeed - 1.0f, TractiveEffort);
+			TractiveCurve.AddKey(AutopilotTopSpeed, 0.0f);
+
+			// Engine braking fades out at walking speed, so the wagon stops on its brakes
+			const float EngineBrakingEffort = MassTonnes * AutopilotEngineBraking;
+			FRichCurve& EngineBrakingCurve = ResetCurve(Autopilot->mDynamicBrakingEffortCurve);
+			EngineBrakingCurve.AddKey(0.0f, 0.0f);
+			EngineBrakingCurve.AddKey(2.0f, EngineBrakingEffort);
+			EngineBrakingCurve.AddKey(AutopilotTopSpeed, EngineBrakingEffort);
+			Autopilot->mMaxAirBrakingEffort = MassTonnes * (AutopilotBraking - AutopilotEngineBraking);
+
+			// Corner as fast as the grip allows: speed = sqrt(lateral acceleration * radius).
+			// The curve's input is curvature in deg/cm, which is 0.573 / radius in metres.
+			FRichCurve& CurvatureCurve = ResetCurve(Autopilot->mCurvatureSpeedLimitCurve);
+			CurvatureCurve.AddKey(0.0f, AutopilotTopSpeed);
+			for (const float Radius : { 3.0f, 5.0f, 10.0f, 20.0f, 50.0f, 100.0f, 200.0f })
+			{
+				CurvatureCurve.AddKey(0.573f / Radius, FMath::Min(FMath::Sqrt(AutopilotCornering * Radius), AutopilotTopSpeed));
+			}
+
+			// Let the throttle and the speed limit keep up with the above
+			Autopilot->mAutopilotThrottleChangeRate = AutopilotThrottleChangeRate;
+			Autopilot->mAutopilotSpeedLimitChangeRate = AutopilotBraking * 100.0f; // cm/s
+
+			UE_LOG(LogCyberWagonFirmware, Log, TEXT("Autopilot ready: mass %.0f kg, tractive effort %.1f kN, top speed %.1f"),
+				Autopilot->mVehicleMass, TractiveEffort, AFGWheeledVehicle::GetMaxAutopilotSpeedForVehicleType(PatchedVehicleClass));
+		}
+
+		// Set the vehicle inventory slots to FCWFU_INVENTORY_SLOTS
 		VehicleCDO->mInventorySize =  FCWFU_INVENTORY_SLOTS;
 		// Cargo: a fixed slot count (the vanilla wagon has 1). Wagons from older saves are grown on
 		// BeginPlay by FCWFU_TuningPatch.
@@ -228,6 +292,13 @@ bool UCWFU_WorldSubsystem::SetupContent()
 				SpeedCurve->AddKey(120.f, 0.3f);
 			}
 		}
+	}
+
+	// A new instance of a Blueprint only copies the native properties that differed from the native defaults when the
+	// class was loaded. The path preset was empty then, so without this rebuild wagons would never receive it.
+	if (UBlueprintGeneratedClass* PatchedVehicleBlueprintClass = Cast<UBlueprintGeneratedClass>(PatchedVehicleClass))
+	{
+		PatchedVehicleBlueprintClass->UpdateCustomPropertyListForPostConstruction();
 	}
 
 	FCWFU_SteeringPatch::SetPatchedVehicleClass(PatchedVehicleClass);
