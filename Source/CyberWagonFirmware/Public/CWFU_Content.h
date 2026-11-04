@@ -4,6 +4,7 @@
 #include "FGRecipe.h"
 #include "FGSchematic.h"
 #include "FGVehicleWheel.h"
+#include "Resources/FGBuildingDescriptor.h"
 #include "Resources/FGVehicleDescriptor.h"
 #include "CWFU_Content.generated.h"
 
@@ -43,6 +44,39 @@ class CYBERWAGONFIRMWARE_API UCWFU_Schematic : public UFGSchematic
 	GENERATED_BODY()
 public:
 	UCWFU_Schematic();
+};
+
+/**
+ * Build descriptors of the two stations. Name and description come from the station Blueprints; icons, build-menu
+ * category and the buildable class are filled in at runtime by UCWFU_WorldSubsystem.
+ */
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_UnloadStationDesc : public UFGBuildingDescriptor
+{
+	GENERATED_BODY()
+};
+
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_LoadStationDesc : public UFGBuildingDescriptor
+{
+	GENERATED_BODY()
+};
+
+/** Build gun recipes of the two stations. Ingredients are set at runtime by UCWFU_WorldSubsystem */
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_UnloadStationRecipe : public UFGRecipe
+{
+	GENERATED_BODY()
+public:
+	UCWFU_UnloadStationRecipe();
+};
+
+UCLASS()
+class CYBERWAGONFIRMWARE_API UCWFU_LoadStationRecipe : public UFGRecipe
+{
+	GENERATED_BODY()
+public:
+	UCWFU_LoadStationRecipe();
 };
 
 /**

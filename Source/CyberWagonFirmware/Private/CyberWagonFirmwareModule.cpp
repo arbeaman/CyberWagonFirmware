@@ -1,5 +1,6 @@
 #include "CyberWagonFirmwareModule.h"
 #include "CWFU_GagPatch.h"
+#include "CWFU_StationPatch.h"
 #include "CWFU_SteeringPatch.h"
 #include "CWFU_TuningPatch.h"
 
@@ -13,6 +14,7 @@ void FCyberWagonFirmwareModule::StartupModule()
 		FCWFU_SteeringPatch::Install();
 		FCWFU_GagPatch::Install();
 		FCWFU_TuningPatch::Install();
+		FCWFU_StationPatch::Install();
 	}
 }
 

@@ -41,12 +41,25 @@ UCWFU_Recipe::UCWFU_Recipe()
 	mManufactoringDuration = 1.0f;
 }
 
+UCWFU_UnloadStationRecipe::UCWFU_UnloadStationRecipe()
+{
+	mProduct.Add(FItemAmount(UCWFU_UnloadStationDesc::StaticClass(), 1));
+	mManufactoringDuration = 1.0f;
+}
+
+UCWFU_LoadStationRecipe::UCWFU_LoadStationRecipe()
+{
+	mProduct.Add(FItemAmount(UCWFU_LoadStationDesc::StaticClass(), 1));
+	mManufactoringDuration = 1.0f;
+}
+
 UCWFU_Schematic::UCWFU_Schematic()
 {
 	mType = ESchematicType::EST_ResourceSink;
 	mDisplayName = GetWagonName();
 	mDescription = LOCTEXT("SchematicDescription",
-		"An over-the-air update for your Cyber Wagon. Unlocks the long-requested ability to turn left.");
+		"An over-the-air update for your Cyber Wagon. Unlocks the long-requested ability to turn left, "
+		"and the CyberWagon Unload and CyberWagon Load stations.");
 	mTechTier = 1;
 	mMenuPriority = 1.5f; // right after the vanilla Cyber Wagon (1.0)
 	mTimeToComplete = 0.0f;

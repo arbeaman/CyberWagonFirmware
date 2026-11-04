@@ -1,8 +1,10 @@
 #include "CWFU_WorldSubsystem.h"
 #include "CWFU_Content.h"
+#include "CWFU_StationPatch.h"
 #include "CWFU_SteeringPatch.h"
 #include "CyberWagonFirmwareModule.h"
 #include "AvailabilityDependencies/FGSchematicPurchasedDependency.h"
+#include "Buildables/FGBuildableDockingStation.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "FGVehicle.h"
 #include "Registry/ModContentRegistry.h"
@@ -27,8 +29,29 @@ static const TCHAR* PatchedVehiclePath = TEXT("/CyberWagonFirmware/BP_CyberWagon
 // On autopilot the patched wagon drives on the Truck's paths (Truck and Universal)
 static const TCHAR* TruckPath = TEXT("/Game/FactoryGame/Buildable/Vehicle/Truck/BP_Truck.BP_Truck_C");
 
+// The mod's stations: Blueprint children of the vanilla Truck Station (Build_TruckStation), see README
+static const TCHAR* UnloadStationPath = TEXT("/CyberWagonFirmware/Build_CyberWagonUnload.Build_CyberWagonUnload_C");
+static const TCHAR* LoadStationPath = TEXT("/CyberWagonFirmware/Build_CyberWagonLoad.Build_CyberWagonLoad_C");
+static const TCHAR* TruckStationDescPath = TEXT("/Game/FactoryGame/Buildable/Factory/TruckStation/Desc_TruckStation.Desc_TruckStation_C");
+
 static constexpr int32 FirmwareCouponCost = 25;
 static constexpr int32 FirmwareCircuitBoards = 2;
+
+struct FCWFU_StationIngredient
+{
+	const TCHAR* ItemPath;
+	int32 Amount;
+};
+
+// Fixed cost of each station: twice a Truck Station (15 Modular Frame, 20 Rotor, 50 Cable) plus
+// a Firmware Update wagon (10 Reinforced Iron Plate, 2 Circuit Board)
+static const FCWFU_StationIngredient StationIngredients[] = {
+	{ TEXT("/Game/FactoryGame/Resource/Parts/ModularFrame/Desc_ModularFrame.Desc_ModularFrame_C"), 30 },
+	{ TEXT("/Game/FactoryGame/Resource/Parts/Rotor/Desc_Rotor.Desc_Rotor_C"), 40 },
+	{ TEXT("/Game/FactoryGame/Resource/Parts/Cable/Desc_Cable.Desc_Cable_C"), 100 },
+	{ TEXT("/Game/FactoryGame/Resource/Parts/IronPlateReinforced/Desc_IronPlateReinforced.Desc_IronPlateReinforced_C"), 10 },
+	{ CircuitBoardPath, 2 },
+};
 
 // Tyre grip (Chaos FrictionForceMultiplier). The vanilla wagon uses the engine default of 2.0, which limits it to
 // about 0.4 g: its drive force is far above that, so it spins its wheels and slides. 3.6 gives roughly 0.7 g,
@@ -108,20 +131,39 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	UClass* CircuitBoardClass = LoadClass<UFGItemDescriptor>(nullptr, CircuitBoardPath);
 	UClass* PatchedVehicleClass = LoadClass<AFGVehicle>(nullptr, PatchedVehiclePath);
 	UClass* TruckClass = LoadClass<AFGWheeledVehicle>(nullptr, TruckPath);
-	if (!VanillaDescClass || !VanillaRecipeClass || !VanillaSchematicClass || !CircuitBoardClass || !PatchedVehicleClass || !TruckClass)
+	UClass* UnloadStationClass = LoadClass<AFGBuildableDockingStation>(nullptr, UnloadStationPath);
+	UClass* LoadStationClass = LoadClass<AFGBuildableDockingStation>(nullptr, LoadStationPath);
+	UClass* TruckStationDescClass = LoadClass<UFGBuildingDescriptor>(nullptr, TruckStationDescPath);
+	if (!VanillaDescClass || !VanillaRecipeClass || !VanillaSchematicClass || !CircuitBoardClass || !PatchedVehicleClass || !TruckClass
+		|| !UnloadStationClass || !LoadStationClass || !TruckStationDescClass)
 	{
-		UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class: desc=%d recipe=%d schematic=%d circuit=%d vehicle=%d truck=%d"),
+		UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class: desc=%d recipe=%d schematic=%d circuit=%d vehicle=%d truck=%d unloadstation=%d loadstation=%d stationdesc=%d"),
 			VanillaDescClass != nullptr, VanillaRecipeClass != nullptr, VanillaSchematicClass != nullptr,
-			CircuitBoardClass != nullptr, PatchedVehicleClass != nullptr, TruckClass != nullptr);
+			CircuitBoardClass != nullptr, PatchedVehicleClass != nullptr, TruckClass != nullptr,
+			UnloadStationClass != nullptr, LoadStationClass != nullptr, TruckStationDescClass != nullptr);
 		return false;
 	}
 
 	// Our classes' CDOs are native and live in the disregard-for-GC pool, whose references are not traced by the
 	// garbage collector. Anything only they point at (loaded classes, the unlock/dependency objects below) would
 	// be collected on the next map change and leave dangling pointers, so root it explicitly.
-	for (UClass* Class : { VanillaDescClass, VanillaRecipeClass, VanillaSchematicClass, CircuitBoardClass, PatchedVehicleClass, TruckClass })
+	for (UClass* Class : { VanillaDescClass, VanillaRecipeClass, VanillaSchematicClass, CircuitBoardClass, PatchedVehicleClass, TruckClass,
+		UnloadStationClass, LoadStationClass, TruckStationDescClass })
 	{
 		Class->AddToRoot();
+	}
+
+	TArray<FItemAmount> StationCost;
+	for (const FCWFU_StationIngredient& Ingredient : StationIngredients)
+	{
+		UClass* ItemClass = LoadClass<UFGItemDescriptor>(nullptr, Ingredient.ItemPath);
+		if (!ItemClass)
+		{
+			UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class %s"), Ingredient.ItemPath);
+			return false;
+		}
+		ItemClass->AddToRoot();
+		StationCost.Add(FItemAmount(ItemClass, Ingredient.Amount));
 	}
 
 	const UFGVehicleDescriptor* VanillaDesc = VanillaDescClass->GetDefaultObject<UFGVehicleDescriptor>();
@@ -149,6 +191,29 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	Recipe->mIngredients = VanillaRecipe->mIngredients;
 	Recipe->mIngredients.Add(FItemAmount(CircuitBoardClass, FirmwareCircuitBoards));
 	Recipe->mProducedIn = VanillaRecipe->mProducedIn;
+
+	// Stations: everything the build menu needs comes from the Truck Station's descriptor, except what they build
+	const UFGBuildingDescriptor* TruckStationDesc = TruckStationDescClass->GetDefaultObject<UFGBuildingDescriptor>();
+	const auto SetupStationDesc = [TruckStationDesc](UFGBuildingDescriptor* StationDesc, UClass* StationClass, float MenuPriorityOffset)
+	{
+		for (TFieldIterator<FProperty> It(UFGBuildingDescriptor::StaticClass()); It; ++It)
+		{
+			if (It->GetFName() != TEXT("mBuildableClass") && !It->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+			{
+				It->CopyCompleteValue_InContainer(StationDesc, TruckStationDesc);
+			}
+		}
+		StationDesc->mMenuPriority = TruckStationDesc->mMenuPriority + MenuPriorityOffset;
+		StationDesc->mBuildableClass = StationClass;
+	};
+	SetupStationDesc(GetMutableDefault<UCWFU_UnloadStationDesc>(), UnloadStationClass, 0.1f);
+	SetupStationDesc(GetMutableDefault<UCWFU_LoadStationDesc>(), LoadStationClass, 0.2f);
+
+	for (UFGRecipe* StationRecipe : { static_cast<UFGRecipe*>(GetMutableDefault<UCWFU_UnloadStationRecipe>()), static_cast<UFGRecipe*>(GetMutableDefault<UCWFU_LoadStationRecipe>()) })
+	{
+		StationRecipe->mIngredients = StationCost;
+		StationRecipe->mProducedIn = VanillaRecipe->mProducedIn; // the build gun
+	}
 
 	// Schematic: same shop category and icon as the vanilla wagon, paid in coupons
 	UCWFU_Schematic* Schematic = GetMutableDefault<UCWFU_Schematic>();
@@ -190,7 +255,8 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	}
 
 	UFGUnlockRecipe* Unlock = NewObject<UFGUnlockRecipe>(Schematic, UnlockRecipeClass);
-	Unlock->mRecipes = { UCWFU_Recipe::StaticClass() }; // AddRecipe()/Init() are editor-only
+	// AddRecipe()/Init() are editor-only. Unlocks are applied again on load, so saves that already own this schematic get the stations too.
+	Unlock->mRecipes = { UCWFU_Recipe::StaticClass(), UCWFU_UnloadStationRecipe::StaticClass(), UCWFU_LoadStationRecipe::StaticClass() };
 	Unlock->AddToRoot();
 	Schematic->mUnlocks = { Unlock };
 
@@ -302,6 +368,7 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	}
 
 	FCWFU_SteeringPatch::SetPatchedVehicleClass(PatchedVehicleClass);
+	FCWFU_StationPatch::SetStationClasses(UnloadStationClass, LoadStationClass);
 
 	bSetupDone = true;
 	UE_LOG(LogCyberWagonFirmware, Log, TEXT("Cyber Wagon firmware content ready (vehicle class %s)"), *PatchedVehicleClass->GetPathName());
