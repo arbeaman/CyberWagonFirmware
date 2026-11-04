@@ -13,7 +13,8 @@ void FCWFU_TuningPatch::Install()
 		{
 			return;
 		}
-		// Wagons saved before the cargo upgrade load with their old, smaller storage. Only ever grow it.
+		// Wagons saved before the cargo upgrade load with their old, smaller storage.
+		// Grow the wagon's inventory if its slots (GetSizeLinear) are below its size (mInventorySize)
 		UFGInventoryComponent* Storage = Self->GetStorageInventory();
 		if (Storage && Storage->GetSizeLinear() < Self->mInventorySize)
 		{

@@ -9,6 +9,8 @@
 #include "WheeledVehicles/FGWheeledVehicle.h"
 #include "WheeledVehicles/FGWheeledVehicleMovementComponent.h"
 
+static const int FCWFU_INVENTORY_SLOTS = 120;
+
 static const FName ModReference(TEXT("CyberWagonFirmware"));
 
 // Vanilla content (paths from CommunityResources/Docs)
@@ -183,8 +185,10 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	// Vehicles copy this from the class default object when spawned or loaded, so only patched wagons change.
 	if (AFGWheeledVehicle* VehicleCDO = Cast<AFGWheeledVehicle>(PatchedVehicleClass->GetDefaultObject()))
 	{
+		VehicleCDO->mInventorySize =  FCWFU_INVENTORY_SLOTS;
 		// Cargo: as many slots as the Truck (the vanilla wagon has 1). Wagons from older saves are grown on
 		// BeginPlay by FCWFU_TuningPatch.
+		/*
 		if (const UClass* TruckClass = LoadClass<AFGWheeledVehicle>(nullptr, TruckPath))
 		{
 			VehicleCDO->mInventorySize = TruckClass->GetDefaultObject<AFGWheeledVehicle>()->mInventorySize;
@@ -193,6 +197,7 @@ bool UCWFU_WorldSubsystem::SetupContent()
 		{
 			UE_LOG(LogCyberWagonFirmware, Error, TEXT("Missing class %s, cargo space not changed"), TruckPath);
 		}
+		*/
 
 		if (UFGWheeledVehicleMovementComponent* Movement = VehicleCDO->GetVehicleMovementComponent())
 		{
