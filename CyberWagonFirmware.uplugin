@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
-	"Version": 2,
-	"VersionName": "1.1.0",
-	"SemVersion": "1.1.0",
+	"Version": 3,
+	"VersionName": "1.1.1",
+	"SemVersion": "1.1.1",
 	"FriendlyName": "Cyber Wagon (Firmware Update)",
 	"Description": "Adds the Cyber Wagon (Firmware Update) to the AWESOME Shop: a Cyber Wagon that turns left, has a larger inventory, better traction, and without several firmware bugs.",
 	"Category": "Modding",

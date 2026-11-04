@@ -186,7 +186,7 @@ bool UCWFU_WorldSubsystem::SetupContent()
 	if (AFGWheeledVehicle* VehicleCDO = Cast<AFGWheeledVehicle>(PatchedVehicleClass->GetDefaultObject()))
 	{
 		VehicleCDO->mInventorySize =  FCWFU_INVENTORY_SLOTS;
-		// Cargo: as many slots as the Truck (the vanilla wagon has 1). Wagons from older saves are grown on
+		// Cargo: a fixed slot count (the vanilla wagon has 1). Wagons from older saves are grown on
 		// BeginPlay by FCWFU_TuningPatch.
 		/*
 		if (const UClass* TruckClass = LoadClass<AFGWheeledVehicle>(nullptr, TruckPath))
