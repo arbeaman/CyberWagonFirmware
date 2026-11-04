@@ -25,3 +25,6 @@ Select the CyberWagon and Alpakit for all platforms
 git commit -m "Version 1.1.1"
 git tag -f -a v1.1.1 -m "Version 1.1.1"
 git push origin main refs/tags/v1.1.1
+
+Create a new release on GitHub
+Push the new code and set the tag for the latest release version
