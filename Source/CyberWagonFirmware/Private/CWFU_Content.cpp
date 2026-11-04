@@ -59,7 +59,7 @@ UCWFU_Schematic::UCWFU_Schematic()
 	mDisplayName = GetWagonName();
 	mDescription = LOCTEXT("SchematicDescription",
 		"An over-the-air update for your Cyber Wagon. Unlocks the long-requested ability to turn left, "
-		"and the CyberWagon Unload and CyberWagon Load stations.");
+		"and the Cyber Unload Station and Cyber Load Station.");
 	mTechTier = 1;
 	mMenuPriority = 1.5f; // right after the vanilla Cyber Wagon (1.0)
 	mTimeToComplete = 0.0f;

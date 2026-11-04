@@ -9,7 +9,7 @@ The fixes include:
    4. Better acceleration and tire grip: more grip, traction control on all wheels and ABS on all wheels. 0-100 km/h takes about 5 seconds, close to a real Cybertruck.
    5. More cargo space: 120 inventory slots (the vanilla Cyber Wagon has 1).
    6. Self-driving: follows Truck and Universal paths and loads and unloads at Truck Stations, with the same acceleration, top speed, braking and cornering grip as when you drive it yourself.
-   7. Two new stations, CyberWagon Unload and CyberWagon Load, with 240 inventory slots. See [Stations](#stations).
+   7. Two new stations, Cyber Unload Station and Cyber Load Station, with 240 inventory slots. See [Stations](#stations).
 
 ## How to get the Cyber Wagon
 
@@ -23,8 +23,8 @@ Buying the AWESOME Shop entry also unlocks two stations in the build menu, next 
 
 | Station | Cargo ports | Mode | Storage |
 |---|---|---|---|
-| **CyberWagon Unload** | 4 outputs | Always unloads vehicles | 240 slots |
-| **CyberWagon Load** | 4 inputs | Always loads vehicles | 240 slots |
+| **Cyber Unload Station** | 4 outputs | Always unloads vehicles | 240 slots |
+| **Cyber Load Station** | 4 inputs | Always loads vehicles | 240 slots |
 
 - Both keep the Truck Station's separate fuel input, so they can refuel vehicles.
 - The load/unload toggle in the station's UI has no effect.
@@ -74,4 +74,4 @@ This project is based on the starter project from Satisfactory [SML starter proj
 - A wagon loaded from a save keeps whatever speed it was saved with.
 - Each wagon should log `uses path preset VehiclePathPreset_Truck`. `None` means the preset didn't reach it.
 - On a Truck or Universal path, the wagon should accept a route with Truck Stations, drive it, and load and unload at each stop.
-- A CyberWagon Unload should move a docked vehicle's cargo into its 240 slots and out of its 4 output ports. A CyberWagon Load should fill from its 4 input ports and load the vehicle. Toggling the mode in the UI should do nothing.
+- A Cyber Unload Station should move a docked vehicle's cargo into its 240 slots and out of its 4 output ports. A Cyber Load Station should fill from its 4 input ports and load the vehicle. Toggling the mode in the UI should do nothing.

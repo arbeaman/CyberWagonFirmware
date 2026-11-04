@@ -1,4 +1,4 @@
-# Creates the CyberWagon Unload and CyberWagon Load Blueprints: children of the vanilla Truck Station with their cargo
+# Creates the Cyber Unload Station and Cyber Load Station Blueprints: children of the vanilla Truck Station with their cargo
 # ports turned one way and more storage. Blueprint inherited components can only be changed in the editor, see README.
 # UnrealEditor-Cmd.exe FactoryGame.uproject -run=pythonscript -script=<path to this file> -unattended -nullrhi
 import unreal
@@ -9,12 +9,12 @@ STORAGE_SLOTS = 240
 
 # Input0 is the fuel port (tagged "Fuel"), which stays an input on both stations
 STATIONS = [
-    ('Build_CyberWagonUnload', 'CyberWagon Unload',
+    ('Build_CyberWagonUnload', 'Cyber Unload Station',
      'Unloads resources from docked vehicles.\r\n\r\nHas 240 inventory slots and 4 output ports.\r\n\r\n'
      'Transfers up to 120 stacks per minute from docked vehicles.\r\n'
      'Always refuels vehicles if it has access to a matching fuel type.',
      ['Input1', 'Input2'], unreal.FactoryConnectionDirection.FCD_OUTPUT),
-    ('Build_CyberWagonLoad', 'CyberWagon Load',
+    ('Build_CyberWagonLoad', 'Cyber Load Station',
      'Loads resources into docked vehicles.\r\n\r\nHas 240 inventory slots and 4 input ports.\r\n\r\n'
      'Transfers up to 120 stacks per minute to docked vehicles.\r\n'
      'Always refuels vehicles if it has access to a matching fuel type.',
@@ -24,9 +24,8 @@ STATIONS = [
 
 def create_station(name, display_name, description, ports, direction):
     path = f'{CONTENT}/{name}'
-    if unreal.EditorAssetLibrary.does_asset_exist(path):
-        blueprint = unreal.load_asset(path)
-    else:
+    blueprint = unreal.load_asset(path)
+    if not blueprint:
         factory = unreal.BlueprintFactory()
         factory.set_editor_property('parent_class', unreal.load_asset(PARENT).generated_class())
         blueprint = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, CONTENT, unreal.Blueprint, factory)
