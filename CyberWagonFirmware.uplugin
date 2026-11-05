@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
-	"Version": 4,
-	"VersionName": "1.2.0",
-	"SemVersion": "1.2.0",
+	"Version": 5,
+	"VersionName": "1.2.1",
+	"SemVersion": "1.2.1",
 	"FriendlyName": "Cyber Wagon (Firmware Update)",
 	"Description": "Adds the Cyber Wagon (Firmware Update) to the AWESOME Shop.  The new Cyber Wagon is a large cargo version with better performance.  It also adds two Cyber Stations (Truck Stations) with increased capacity.",
 	"Category": "Modding",

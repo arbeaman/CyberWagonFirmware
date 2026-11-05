@@ -1,9 +1,22 @@
 BuildAndDeploy:
 
-# To create version, incereasing trunk capacity:
+# Making changes:
 
+## To change truck inventory:
 Edit Source\CyberWagonFirmware\CWFU_WorldSubsystem
 static const int FCWFU_INVENTORY_SLOTS = 120;
+
+## To change station appearance:
+
+Edit the script that creates the bluprints:
+	Scripts/CreateStationBlueprints.py
+
+Run it from D:\SML with the command:
+"D:\Unreal Engine - CSS\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" FactoryGame.uproject -run=pythonscript -script=D:/SML/Mods/GameFeatures/CyberWagonFirmware/Scripts/CreateStationBlueprints.py -unattended -nullrhi
+
+
+# To create version:
+
 
 Edit CyberWagonFirmware.upluging
 Update:
